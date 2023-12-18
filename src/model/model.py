@@ -108,7 +108,6 @@ class Model(QObject):
         # if(self._shape == "Square"): 
         #     samples = np.append(self._amplitude*np.ones(50), np.zeros(50))
         #     samples_mode = constants.AcquisitionType.CONTINUOUS
-
         samples = np.linspace(self._start, self._end, self._numpoints)
         samples_mode = constants.AcquisitionType.FINITE
         

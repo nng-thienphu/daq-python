@@ -1,10 +1,8 @@
-from PyQt5.QtCore import QObject, pyqtSlot
-
+from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal
 
 class MainController(QObject):
     def __init__(self, model):
         super().__init__()
-
         self._model = model
     
     @pyqtSlot(int) 
@@ -39,5 +37,19 @@ class MainController(QObject):
     def update_status(self, value): 
         self._model.status = value
     
-
-    
+        
+class ControllerSample(MainController):  
+    sampling_finish = pyqtSignal()
+    sampling_progress = pyqtSignal()    
+    def sampling(self): 
+        self.sampling_progress.emit()
+        print("Checking...")
+        print("V. Start Value: {}".format(self._model.start))
+        print("V. End Value: {}".format(self._model.end))
+        print("Time Value : {}".format(self._model.time))
+        print("Analog Signal? : {}".format(self._model.signal_analog))
+        print("Digital Signal? : {}".format(self._model.signal_digital))
+        print("Port: {}".format(self._model.port))
+        print("Shape : {}".format(self._model.shape))
+        self._model.sample_line_shape() 
+        self.sampling_finish.emit()

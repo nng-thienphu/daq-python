@@ -1,22 +1,40 @@
 from PyQt5.QtWidgets import QMainWindow
-from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtCore import pyqtSlot, QThread, QObject
 from views.main_view_ui import Ui_MainWindow
+from controllers.main_ctrl import ControllerSample
 
 
 class MainView(QMainWindow):
     def __init__(self, model, main_controller):
         super().__init__()
-
         self._model = model
         self._main_controller = main_controller
         self._ui = Ui_MainWindow(self)
         self._ui.label_status.setText(self._model.status)
         self._ui.setupUi(self)
-
         self._ui.pushButton_update.clicked.connect(lambda: self.btn_update_clicked())
 
+        self.thread_sample_initialize()
+          
+    def thread_sample_initialize(self) : 
+        # Create a QThread object and move controller to new thread
+        self._controller_sample = ControllerSample(self._model)
+        self.thread_sample = QThread()
+        self._controller_sample.moveToThread(self.thread_sample)
+
+        self.thread_sample.started.connect(self._controller_sample.sampling)
+        self.thread_sample.finished.connect(
+            lambda: self._ui.pushButton_update.setEnabled(True)
+        )
+        self.thread_sample.finished.connect(lambda: self._ui.label_status.setText("Running Completed"))
+        # self.thread_sample.finished.connect(self.thread_sample.deleteLater)
+
+        self._controller_sample.sampling_finish.connect(self.thread_sample.quit)
+        self._controller_sample.sampling_progress.connect(lambda: print("working on sampling..."))
+        # self._controller_sample.sampling_finish.connect(self._controller_sample.deleteLater)
+
     def btn_update_clicked(self): 
-        print("Button Clicked...")
+        self._ui.label_status.setText("Working on sampling...")  # Reset the label text here
         self._main_controller.update_start(self._ui.spinBox_start.value())
         self._main_controller.update_end(self._ui.spinBox_end.value())
         self._main_controller.update_time(self._ui.spinBox_time.value())
@@ -26,21 +44,17 @@ class MainView(QMainWindow):
         # self._main_controller.update_status("Running...")
         # self._ui.label_status.setText(self._model.status)
 
-        print("Checking...")
-        print("V. Start Value: {}".format(self._model.start))
-        print("V. End Value: {}".format(self._model.end))
-        print("Time Value : {}".format(self._model.time))
-        print("Analog Signal? : {}".format(self._model.signal_analog))
-        print("Digital Signal? : {}".format(self._model.signal_digital))
-        print("Port: {}".format(self._model.port))
-        print("Shape : {}".format(self._model.shape))
-
         # main function here
         print("Working on sampling...")
-        self._model.sample_line_shape()
-        self._ui.label_status.setText("Running Completed")
+        self.run_thread_sample()
 
     @pyqtSlot(int) 
     def on_amplitude_changed(self, value): 
         # self._ui.spinBox_amount2.setValue(value)
         print(self._model.amplitude())
+    
+    def run_thread_sample(self):
+        self.thread_sample.start()
+        self._ui.pushButton_update.setEnabled(False) 
+        
+
