@@ -53,3 +53,16 @@ class ControllerSample(MainController):
         print("Shape : {}".format(self._model.shape))
         self._model.sample_line_shape() 
         self.sampling_finish.emit()
+    
+    def sampling_galvo(self): 
+        self.sampling_progress.emit()
+        print("Checking...")
+        print("V. Start Value: {}".format(self._model.start))
+        print("V. End Value: {}".format(self._model.end))
+        print("Time Value : {}".format(self._model.time))
+        print("Analog Signal? : {}".format(self._model.signal_analog))
+        print("Digital Signal? : {}".format(self._model.signal_digital))
+        print("Port: {}".format(self._model.port))
+        print("Shape : {}".format(self._model.shape))
+        self._model.generate_two_signals4() 
+        self.sampling_finish.emit()
