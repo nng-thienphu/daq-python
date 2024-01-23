@@ -9,6 +9,7 @@ from nidaqmx.stream_writers import DigitalSingleChannelWriter
 import numpy as np
 from devices.camera import Camera
 from nidaqmx.constants import LineGrouping, VoltageUnits
+from configuration.cam_config import CamConfig
 
 
 
@@ -538,4 +539,70 @@ class Model(QObject):
                 time.sleep(0.1)
 
         print("Sine wave and ramp signal generation complete.")
-  
+
+    def generate_two_signals5(self):
+        # change these two line
+        iris = Camera(adapterName= CamConfig.module, deviceName= CamConfig.device_name, labelName=CamConfig.device_label) 
+        # iris.set_property(trigger_mode = "Edge Triggering", exposed_out_mode= "Any Row", scan_mode = "Scan Width")
+
+        #digital signal
+        digital_signal = [False, False, False, False, False, True, False, False, False, False, False]
+        digital_line = "/PhyLabDevice/port0/line0"  
+
+        # Sine Wave Parameters
+        T = self._time  # Period for sine wave
+        fs = 100000     # Sample Rate for both signals
+        numpoints = int(T * fs)  
+        
+        #sine_wave 
+        f = 1 / T       # Frequency for sine wave
+        amp = 2         # Amplitude for sine wave
+
+        x_sine = np.linspace(0, T, numpoints, endpoint=False)
+        sine_wave = amp * np.sin(2 * np.pi * f * x_sine)
+
+        # Ramp Signal Parameters
+        # numpoints_ramp = 1000 * 10
+        ramp_start = self._start
+        ramp_end = self._end
+        single_ramp_cycle = np.linspace(ramp_start, ramp_end, int(fs/f))
+        ramp = np.tile(single_ramp_cycle, int(T * f))
+        # larger_buffer_ramp = np.tile(ramp, 10)
+
+        ramp = ramp[:len(sine_wave)]
+
+        # Ensure both signals have the same length
+        # sine_wave = np.interp(np.linspace(0, T, len(larger_buffer_ramp), endpoint=False), x_sine, sine_wave)
+
+        # Create a task for writing to analog output channels
+        with nidaqmx.Task() as analog_task, nidaqmx.Task() as digital_task:
+            # Add analog output channels for both sine wave and ramp
+            digital_task.do_channels.add_do_chan(
+                digital_line,
+                line_grouping=LineGrouping.CHAN_PER_LINE
+            )
+            analog_task.ao_channels.add_ao_voltage_chan('PhyLabDevice/ao1')
+            analog_task.ao_channels.add_ao_voltage_chan('PhyLabDevice/ao3')
+
+            for signal in digital_signal: 
+                digital_task.write(signal) 
+                if signal: 
+                    iris.snap_image()
+                    # Configure the sample clock timing
+                    analog_task.timing.cfg_samp_clk_timing(rate=fs, sample_mode=nidaqmx.constants.AcquisitionType.CONTINUOUS)
+
+                    # Create a writer for multi-channel
+                    test_Writer = nidaqmx.stream_writers.AnalogMultiChannelWriter(analog_task.out_stream, auto_start=True)
+
+                    # Stack both signals for output
+                    combined_data = np.vstack([sine_wave, ramp])
+
+                    # Write the data to the channels
+                    test_Writer.write_many_sample(combined_data)
+
+                    # Run the task for a specified duration then stop
+                    time.sleep(self._time)
+                    # analog_task.stop()
+                time.sleep(0.1)
+
+        print("Sine wave and ramp signal generation complete.")
